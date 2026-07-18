@@ -1,0 +1,53 @@
+# Production compose file for Dokploy. Differences from docker-compose.yml
+# (local dev): no source bind-mount (runs the built image, not live-reload),
+# backend runs gunicorn via its Dockerfile CMD instead of `runserver`,
+# Postgres isn't published to the host, and every secret comes from
+# Dokploy's own environment variable configuration for this project rather
+# than the gitignored backend/.env / ai-service/.env files, which won't
+# exist in a git-deployed checkout.
+#
+# Set these in Dokploy's dashboard for this project before first deploy:
+#   SECRET_KEY, DB_PASSWORD, ALLOWED_HOSTS, GEMINI_API_KEY,
+#   GEMINI_MODEL (defaults to gemini-2.5-flash-lite if unset)
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lifeos
+      POSTGRES_USER: lifeos
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  ai-service:
+    build: ./ai-service
+    restart: unless-stopped
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
+    command: gunicorn -w 2 -b 0.0.0.0:5000 --timeout 60 "app:create_app()"
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: "False"
+      ENVIRONMENT: production
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      DB_NAME: lifeos
+      DB_USER: lifeos
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      AI_SERVICE_URL: http://ai-service:5000
+    depends_on:
+      - postgres
+      - ai-service
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:
