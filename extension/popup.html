@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Yxng Core</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    width: 300px;
+    margin: 0;
+    padding: 18px;
+    background: #13131A;
+    color: #E4E1EC;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .brand img { width: 24px; height: 24px; }
+  .brand span { font-weight: 800; font-size: 15px; letter-spacing: -0.2px; }
+  h1 {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
+    margin: 0 0 4px; color: #E4E1EC;
+  }
+  h1 .accent { color: #B76DFF; }
+  p.sub { color: #988D9F; font-size: 12px; margin: 0 0 16px; }
+  label { display: block; font-size: 11px; color: #988D9F; margin: 12px 0 5px; font-weight: 600; }
+  input {
+    width: 100%; padding: 9px 12px; border-radius: 10px;
+    border: 1px solid #4D4354; background: #1F1F27; color: #E4E1EC;
+    font-size: 13px; outline: none;
+  }
+  input:focus { border-color: #B76DFF; }
+  button {
+    width: 100%; margin-top: 16px; padding: 11px; border: none;
+    border-radius: 999px; background: #B76DFF; color: white;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  button:hover { background: #A257F0; }
+  button.secondary {
+    background: transparent; color: #988D9F; border: 1px solid #4D4354;
+    margin-top: 8px;
+  }
+  button.scan {
+    background: #1F1F27; color: #DDB7FF; border: 1px solid #4D4354;
+    margin-top: 8px; font-size: 12px; padding: 8px;
+  }
+  .error { color: #FFB4AB; font-size: 12px; margin-top: 10px; display: none; }
+  .success { color: #B76DFF; font-size: 13px; text-align: center; padding: 20px 0; display: none; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+  .row a { color: #988D9F; font-size: 11px; cursor: pointer; text-decoration: underline; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <img src="icons/icon32.png" alt="" />
+    <span>Yxng Core</span>
+  </div>
+
+  <div id="loginView">
+    <h1>Sign <span class="accent">in</span>.</h1>
+    <p class="sub">Connect to your Yxng Core account to capture payments.</p>
+    <label>API base URL</label>
+    <input id="apiBaseUrl" type="text" value="http://localhost:8000" />
+    <label>Username</label>
+    <input id="username" type="text" autocomplete="username" />
+    <label>Password</label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <button id="loginBtn">Log in</button>
+    <div class="error" id="loginError"></div>
+  </div>
+
+  <div id="captureView" class="hidden">
+    <h1>Link this <span class="accent">payment</span>.</h1>
+    <p class="sub" id="pageUrl"></p>
+    <label>Service name</label>
+    <input id="name" type="text" />
+    <label>Card</label>
+    <input id="cardLabel" type="text" placeholder="Visa •••• 4242" />
+    <label>Amount</label>
+    <input id="amount" type="text" inputmode="decimal" placeholder="0.00" />
+    <button class="scan" id="scanBtn">Scan page for price</button>
+    <label>Renews on</label>
+    <input id="renewsOn" type="date" />
+    <button id="saveBtn">Save to Yxng Core</button>
+    <div class="error" id="saveError"></div>
+    <div class="success" id="saveSuccess">Saved ✓</div>
+    <div class="row"><a id="logoutLink">Log out</a></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
