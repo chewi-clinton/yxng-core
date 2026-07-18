@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Yxng Core — Settings</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    max-width: 420px;
+    margin: 40px auto;
+    padding: 24px;
+    background: #13131A;
+    color: #E4E1EC;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  h1 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+  h1 .accent { color: #B76DFF; }
+  p { color: #988D9F; font-size: 13px; }
+  label { display: block; font-size: 12px; color: #988D9F; margin: 16px 0 6px; font-weight: 600; }
+  input {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid #4D4354; background: #1F1F27; color: #E4E1EC; font-size: 14px;
+  }
+  button {
+    margin-top: 18px; padding: 10px 20px; border: none; border-radius: 999px;
+    background: #B76DFF; color: white; font-weight: 700; cursor: pointer;
+  }
+  button.secondary { background: transparent; color: #FFB4AB; border: 1px solid #4D4354; margin-left: 10px; }
+  .saved { color: #B76DFF; font-size: 12px; margin-top: 10px; display: none; }
+</style>
+</head>
+<body>
+  <h1>Yxng Core <span class="accent">extension</span></h1>
+  <p>Configure which backend this extension talks to.</p>
+  <label>API base URL</label>
+  <input id="apiBaseUrl" type="text" placeholder="http://localhost:8000" />
+  <div>
+    <button id="saveBtn">Save</button>
+    <button id="logoutBtn" class="secondary">Log out</button>
+  </div>
+  <div class="saved" id="saved">Saved ✓</div>
+  <script src="options.js"></script>
+</body>
+</html>
