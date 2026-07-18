@@ -37,5 +37,5 @@ services:
       AI_SERVICE_URL: http://ai-service:5000
     depends_on:
       - ai-service
-    expose:
-      - "8000"
+    ports:
+      - "15501:8000"
