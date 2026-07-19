@@ -303,6 +303,7 @@ void mutateMockMilestone(int roadmapId, int milestoneIndex, String status) {
       description: old.description,
       order: old.order,
       status: status,
+      targetDate: old.targetDate,
     );
     return;
   }

@@ -4,6 +4,7 @@ class Milestone {
   final String description;
   final int order;
   final String status;
+  final DateTime? targetDate;
 
   const Milestone({
     this.id,
@@ -11,6 +12,7 @@ class Milestone {
     this.description = '',
     this.order = 0,
     this.status = 'todo',
+    this.targetDate,
   });
 
   bool get done => status == 'done';
@@ -22,6 +24,8 @@ class Milestone {
       description: json['description'] ?? '',
       order: json['order'] ?? 0,
       status: json['status'] ?? 'todo',
+      targetDate:
+          json['target_date'] != null ? DateTime.parse(json['target_date']) : null,
     );
   }
 }

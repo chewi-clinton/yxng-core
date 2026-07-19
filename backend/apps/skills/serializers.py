@@ -11,7 +11,7 @@ class RoadmapCreateSerializer(serializers.Serializer):
 class MilestoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Milestone
-        fields = ["id", "title", "description", "order", "status"]
+        fields = ["id", "title", "description", "order", "status", "target_date"]
 
 
 class MilestoneUpdateSerializer(serializers.ModelSerializer):

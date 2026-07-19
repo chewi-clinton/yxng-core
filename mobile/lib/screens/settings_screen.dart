@@ -45,10 +45,12 @@ class _SettingsTabState extends State<SettingsTab> {
         ),
         content: Text(
           _extensionConnected
-              ? "Connected — we've seen at least one subscription saved from the extension. Install it on more browsers from the yxng-core repo's extension/ folder."
-              : 'Not connected yet. Load the extension from the extension/ folder via chrome://extensions '
-                  '(enable Developer mode → Load unpacked), then log in with this same account. '
-                  "It'll auto-detect checkout/subscription confirmations and offer to save them here.",
+              ? "Active — we've seen at least one subscription saved from the extension. Install it on more browsers from the yxng-core repo's extension/ folder."
+              : "No captures yet. This just means we haven't seen a save come through — "
+                  "if you're already logged into the extension, that's expected until it "
+                  "actually detects and saves a subscription. If you haven't set it up: load it "
+                  "from the extension/ folder via chrome://extensions (enable Developer mode → "
+                  "Load unpacked), then log in with this same account.",
           style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         actions: [
@@ -220,7 +222,7 @@ class _SettingsTabState extends State<SettingsTab> {
               _SettingsRow(
                 icon: Icons.extension_rounded,
                 label: 'Chrome payment extension',
-                trailing: _extensionConnected ? 'Connected' : 'Not connected',
+                trailing: _extensionConnected ? 'Active' : 'No captures yet',
                 onTap: () => _showExtensionInfo(context),
               ),
               const _SettingsRow(

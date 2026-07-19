@@ -221,6 +221,35 @@ class _SkillsTabState extends State<SkillsTab> {
     }
   }
 
+  Future<void> _deleteRoadmap(Roadmap roadmap) async {
+    final roadmaps = _roadmaps;
+    if (roadmaps == null) return;
+    final removedIndex = roadmaps.indexOf(roadmap);
+    setState(() => _roadmaps = [...roadmaps]..remove(roadmap));
+
+    await _roadmapService.deleteRoadmap(roadmap.id);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppColors.surfaceAlt,
+        behavior: SnackBarBehavior.floating,
+        content: Text('"${roadmap.title}" deleted'),
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: AppColors.accentSoft,
+          onPressed: () {
+            setState(() {
+              final current = [...?_roadmaps];
+              current.insert(removedIndex.clamp(0, current.length), roadmap);
+              _roadmaps = current;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   void _openRoadmap(Roadmap summary) {
     showModalBottomSheet(
       context: context,
@@ -331,7 +360,21 @@ class _SkillsTabState extends State<SkillsTab> {
                 )
               else
                 for (final r in _roadmaps!) ...[
-                  _RoadmapCard(roadmap: r, onTap: () => _openRoadmap(r)),
+                  Dismissible(
+                    key: ValueKey(r.id),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 24),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorSurface,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Icon(Icons.delete_rounded, color: Colors.white),
+                    ),
+                    onDismissed: (_) => _deleteRoadmap(r),
+                    child: _RoadmapCard(roadmap: r, onTap: () => _openRoadmap(r)),
+                  ),
                   const SizedBox(height: 12),
                 ],
               const SizedBox(height: 12),
@@ -624,6 +667,7 @@ class _RoadmapDetailBodyState extends State<_RoadmapDetailBody> {
       description: milestone.description,
       order: milestone.order,
       status: newStatus,
+      targetDate: milestone.targetDate,
     );
     final updated = roadmap.copyWith(milestones: updatedMilestones);
     setState(() => _roadmap = updated);
@@ -764,17 +808,45 @@ class _MilestoneRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      milestone.title,
-                      style: TextStyle(
-                        color: milestone.done
-                            ? AppColors.textSecondary
-                            : AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        decoration:
-                            milestone.done ? TextDecoration.lineThrough : null,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            milestone.title,
+                            style: TextStyle(
+                              color: milestone.done
+                                  ? AppColors.textSecondary
+                                  : AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              decoration: milestone.done
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        if (milestone.targetDate != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              _formatDate(milestone.targetDate!),
+                              style: const TextStyle(
+                                color: AppColors.accentSoft,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     if (milestone.description.isNotEmpty) ...[
                       const SizedBox(height: 3),

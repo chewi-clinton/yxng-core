@@ -10,6 +10,7 @@ from .serializers import (
     RoadmapListSerializer,
 )
 from .services.ai_client import AIServiceError, get_roadmap_breakdown
+from .services.pacing import pace_milestones
 
 
 class RoadmapListCreateView(generics.ListCreateAPIView):
@@ -31,6 +32,7 @@ class RoadmapListCreateView(generics.ListCreateAPIView):
                     owner=request.user, **serializer.validated_data
                 )
                 breakdown = get_roadmap_breakdown(roadmap.title, roadmap.target_date)
+                dates = pace_milestones(len(breakdown), roadmap.target_date)
                 Milestone.objects.bulk_create(
                     [
                         Milestone(
@@ -38,6 +40,7 @@ class RoadmapListCreateView(generics.ListCreateAPIView):
                             title=m["title"],
                             description=m.get("description", ""),
                             order=i,
+                            target_date=dates[i],
                         )
                         for i, m in enumerate(breakdown)
                     ]
