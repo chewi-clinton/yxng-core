@@ -1,52 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/opportunity.dart';
+import '../models/roadmap.dart';
 import '../services/opportunities_service.dart';
+import '../services/roadmap_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/icon_badge.dart';
 import '../widgets/progress_bar.dart';
-
-class _Roadmap {
-  final String title;
-  final String stage;
-  final double progress;
-  final IconData icon;
-
-  const _Roadmap({
-    required this.title,
-    required this.stage,
-    required this.progress,
-    required this.icon,
-  });
-}
-
-const _defaultRoadmaps = [
-  _Roadmap(
-    title: 'Advanced Flutter',
-    stage: 'State management deep dive',
-    progress: 0.6,
-    icon: Icons.flutter_dash_rounded,
-  ),
-  _Roadmap(
-    title: 'System design',
-    stage: 'Scaling data stores',
-    progress: 0.25,
-    icon: Icons.hub_rounded,
-  ),
-  _Roadmap(
-    title: 'AI automation',
-    stage: 'Agent orchestration basics',
-    progress: 0.1,
-    icon: Icons.smart_toy_rounded,
-  ),
-];
 
 const _attributionSources = {
   'Remote OK': 'https://remoteok.com',
   'Remotive': 'https://remotive.com',
   'Jobicy': 'https://jobicy.com',
 };
+
+String _formatDate(DateTime d) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[d.month - 1]} ${d.day}, ${d.year}';
+}
 
 class SkillsTab extends StatefulWidget {
   const SkillsTab({super.key});
@@ -56,8 +34,9 @@ class SkillsTab extends StatefulWidget {
 }
 
 class _SkillsTabState extends State<SkillsTab> {
-  final List<_Roadmap> _roadmaps = [..._defaultRoadmaps];
+  final _roadmapService = RoadmapService();
   final _opportunitiesService = OpportunitiesService();
+  List<Roadmap>? _roadmaps;
   late Future<List<Opportunity>> _opportunitiesFuture;
   final Set<String> _activeFilters = {};
 
@@ -65,6 +44,12 @@ class _SkillsTabState extends State<SkillsTab> {
   void initState() {
     super.initState();
     _opportunitiesFuture = _opportunitiesService.fetchAll();
+    _loadRoadmaps();
+  }
+
+  Future<void> _loadRoadmaps() async {
+    final roadmaps = await _roadmapService.listRoadmaps();
+    if (mounted) setState(() => _roadmaps = roadmaps);
   }
 
   void _reloadOpportunities() {
@@ -75,44 +60,195 @@ class _SkillsTabState extends State<SkillsTab> {
 
   Future<void> _addRoadmap() async {
     final controller = TextEditingController();
-    final title = await showDialog<String>(
+    DateTime? targetDate;
+
+    final submitted = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surfaceAlt,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'What do you want to learn?',
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 17),
-        ),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'e.g. GraphQL, Rust, UI design'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+      backgroundColor: AppColors.surfaceAlt,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                24 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'What do you want to learn?',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "AI will generate a real milestone-by-milestone roadmap for it.",
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. GraphQL, Rust, UI design',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: targetDate ??
+                            DateTime.now().add(const Duration(days: 30)),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 730)),
+                      );
+                      if (picked != null) {
+                        setSheetState(() => targetDate = picked);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border, width: 0.6),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.flag_rounded,
+                            color: AppColors.accentSoft,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            targetDate == null
+                                ? 'Target date · Tap to set (optional)'
+                                : 'Target · ${_formatDate(targetDate!)}',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Generate roadmap'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    final title = controller.text.trim();
+    if (submitted != true || title.isEmpty || !mounted) return;
+
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black87,
+      builder: (context) => Center(
+        child: Container(
+          width: 240,
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AppColors.border, width: 0.6),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Add'),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 70,
+                child: Lottie.asset('assets/lottie/ai_thinking_pulse.json', repeat: true),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'AI is mapping your roadmap…',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    ));
+
+    try {
+      final results = await Future.wait([
+        _roadmapService.createRoadmap(title: title, targetDate: targetDate),
+        Future.delayed(const Duration(milliseconds: 2200)),
+      ]);
+      final roadmap = results[0] as Roadmap;
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        setState(() => _roadmaps = [...?_roadmaps, roadmap]);
+      }
+    } on RoadmapGenerationException catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    }
+  }
+
+  void _openRoadmap(Roadmap summary) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceAlt,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => _RoadmapDetailBody(
+          roadmapId: summary.id,
+          roadmapService: _roadmapService,
+          scrollController: scrollController,
+          onUpdated: (updated) {
+            setState(() {
+              _roadmaps = [
+                for (final r in _roadmaps ?? <Roadmap>[])
+                  if (r.id == updated.id) updated else r,
+              ];
+            });
+          },
+        ),
       ),
     );
-    if (title != null && title.isNotEmpty) {
-      setState(() {
-        _roadmaps.add(
-          _Roadmap(
-            title: title,
-            stage: 'Just started',
-            progress: 0,
-            icon: Icons.auto_awesome_rounded,
-          ),
-        );
-      });
-    }
   }
 
   Future<void> _openListing(Opportunity o) async {
@@ -178,10 +314,26 @@ class _SkillsTabState extends State<SkillsTab> {
                 ],
               ),
               const SizedBox(height: 10),
-              for (final r in _roadmaps) ...[
-                _RoadmapCard(roadmap: r),
-                const SizedBox(height: 12),
-              ],
+              if (_roadmaps == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.accent),
+                  ),
+                )
+              else if (_roadmaps!.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    "No roadmaps yet — tap + and tell the AI what you want to learn.",
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                )
+              else
+                for (final r in _roadmaps!) ...[
+                  _RoadmapCard(roadmap: r, onTap: () => _openRoadmap(r)),
+                  const SizedBox(height: 12),
+                ],
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -370,48 +522,276 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _RoadmapCard extends StatelessWidget {
-  final _Roadmap roadmap;
-  const _RoadmapCard({required this.roadmap});
+  final Roadmap roadmap;
+  final VoidCallback onTap;
+  const _RoadmapCard({required this.roadmap, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border, width: 0.6),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppColors.border, width: 0.6),
+        ),
+        child: Row(
+          children: [
+            const IconBadge(icon: Icons.flag_rounded),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    roadmap.title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    roadmap.stage,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  YProgressBar(value: roadmap.progress),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+          ],
+        ),
       ),
-      child: Row(
+    );
+  }
+}
+
+class _RoadmapDetailBody extends StatefulWidget {
+  final int roadmapId;
+  final RoadmapService roadmapService;
+  final ScrollController scrollController;
+  final ValueChanged<Roadmap> onUpdated;
+
+  const _RoadmapDetailBody({
+    required this.roadmapId,
+    required this.roadmapService,
+    required this.scrollController,
+    required this.onUpdated,
+  });
+
+  @override
+  State<_RoadmapDetailBody> createState() => _RoadmapDetailBodyState();
+}
+
+class _RoadmapDetailBodyState extends State<_RoadmapDetailBody> {
+  Roadmap? _roadmap;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final roadmap = await widget.roadmapService.getRoadmap(widget.roadmapId);
+    if (mounted) setState(() => _roadmap = roadmap);
+  }
+
+  Future<void> _toggleMilestone(int index) async {
+    final roadmap = _roadmap;
+    if (roadmap == null) return;
+    final milestone = roadmap.milestones[index];
+    final newStatus = milestone.done ? 'todo' : 'done';
+    final updatedMilestones = [...roadmap.milestones];
+    updatedMilestones[index] = Milestone(
+      id: milestone.id,
+      title: milestone.title,
+      description: milestone.description,
+      order: milestone.order,
+      status: newStatus,
+    );
+    final updated = roadmap.copyWith(milestones: updatedMilestones);
+    setState(() => _roadmap = updated);
+    widget.onUpdated(updated);
+
+    await widget.roadmapService.updateMilestoneStatus(
+      roadmapId: roadmap.id,
+      milestoneIndex: index,
+      milestoneId: milestone.id,
+      status: newStatus,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final roadmap = _roadmap;
+    if (roadmap == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 60),
+        child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconBadge(icon: roadmap.icon),
-          const SizedBox(width: 14),
+          Row(
+            children: [
+              const IconBadge(icon: Icons.flag_rounded),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      roadmap.title,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 19,
+                      ),
+                    ),
+                    if (roadmap.targetDate != null)
+                      Text(
+                        'Target · ${_formatDate(roadmap.targetDate!)}',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          YProgressBar(value: roadmap.progress),
+          const SizedBox(height: 6),
+          Text(
+            '${(roadmap.progress * 100).round()}% complete · ${roadmap.stage}',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 20),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  roadmap.title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  roadmap.stage,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                YProgressBar(value: roadmap.progress),
-              ],
+            child: ListView.builder(
+              controller: widget.scrollController,
+              itemCount: roadmap.milestones.length,
+              itemBuilder: (context, index) {
+                final m = roadmap.milestones[index];
+                final isLast = index == roadmap.milestones.length - 1;
+                return _MilestoneRow(
+                  milestone: m,
+                  isLast: isLast,
+                  onToggle: () => _toggleMilestone(index),
+                );
+              },
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MilestoneRow extends StatelessWidget {
+  final Milestone milestone;
+  final bool isLast;
+  final VoidCallback onToggle;
+
+  const _MilestoneRow({
+    required this.milestone,
+    required this.isLast,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onToggle,
+      behavior: HitTestBehavior.opaque,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: milestone.done ? AppColors.accent : AppColors.surface,
+                    border: Border.all(
+                      color: milestone.done ? AppColors.accent : AppColors.border,
+                      width: 1.4,
+                    ),
+                  ),
+                  child: milestone.done
+                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 15)
+                      : null,
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      color: AppColors.border,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 22, top: 2),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      milestone.title,
+                      style: TextStyle(
+                        color: milestone.done
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        decoration:
+                            milestone.done ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                    if (milestone.description.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        milestone.description,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

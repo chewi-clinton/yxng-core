@@ -71,12 +71,4 @@ class AuthService extends ChangeNotifier {
     isAuthenticated = false;
     notifyListeners();
   }
-
-  /// Dev-only: preview authenticated screens before the backend is wired up.
-  /// Not gated behind kDebugMode intentionally so it also works in profile
-  /// builds during frontend-only testing; remove once auth is live.
-  void bypassForDev() {
-    isAuthenticated = true;
-    notifyListeners();
-  }
 }

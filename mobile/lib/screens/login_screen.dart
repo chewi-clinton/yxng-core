@@ -148,24 +148,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    context.read<AuthService>().bypassForDev();
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const HomeShell()),
-                    );
-                  },
-                  child: const Text(
-                    'Preview app (no backend yet)',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ),
               const Spacer(flex: 2),
             ],
           ),

@@ -20,6 +20,15 @@ class TaskBreakdown(BaseModel):
     tasks: List[TaskItem]
 
 
+class MilestoneItem(BaseModel):
+    title: str
+    description: str
+
+
+class RoadmapBreakdown(BaseModel):
+    milestones: List[MilestoneItem]
+
+
 class AIClientError(Exception):
     pass
 
@@ -32,6 +41,16 @@ Description: {description}
 Tech stack: {tech_stack}
 
 Estimate a realistic duration in minutes for one focused developer per task."""
+
+ROADMAP_PROMPT_TEMPLATE = """Create a learning roadmap for someone who wants to learn \
+"{topic}", going from their current level to a solid working proficiency.
+
+{pacing}
+
+Break it into an ordered sequence of concrete milestones (earliest/most foundational \
+first). Each milestone should be a specific, achievable chunk of learning or practice \
+(e.g. a concept to master, a small project to build, a skill to practice) — not vague \
+advice. Aim for between 5 and 10 milestones depending on the scope of the topic."""
 
 
 def get_breakdown(payload: dict) -> list[dict]:
@@ -56,3 +75,30 @@ def get_breakdown(payload: dict) -> list[dict]:
     if not parsed or not parsed.tasks:
         raise AIClientError("Gemini returned an empty or malformed task list")
     return [t.model_dump() for t in parsed.tasks]
+
+
+def get_roadmap_breakdown(payload: dict) -> list[dict]:
+    target_date = payload.get("target_date")
+    pacing = (
+        f"They're aiming to reach proficiency by {target_date}, so pace the milestones "
+        "to be realistically achievable by that date."
+        if target_date
+        else "No specific deadline — order milestones by learning dependency."
+    )
+    prompt = ROADMAP_PROMPT_TEMPLATE.format(topic=payload["topic"], pacing=pacing)
+    try:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=RoadmapBreakdown,
+            ),
+        )
+    except Exception as exc:
+        raise AIClientError(f"Gemini API error: {exc}") from exc
+
+    parsed: RoadmapBreakdown = response.parsed
+    if not parsed or not parsed.milestones:
+        raise AIClientError("Gemini returned an empty or malformed milestone list")
+    return [m.model_dump() for m in parsed.milestones]

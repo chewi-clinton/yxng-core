@@ -2,12 +2,64 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/auth_service.dart';
+import '../services/payments_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 import 'payments_screen.dart';
 
-class SettingsTab extends StatelessWidget {
+class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
+
+  @override
+  State<SettingsTab> createState() => _SettingsTabState();
+}
+
+class _SettingsTabState extends State<SettingsTab> {
+  final _paymentsService = PaymentsService();
+  bool _extensionConnected = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkExtensionConnection();
+  }
+
+  Future<void> _checkExtensionConnection() async {
+    final platforms = await _paymentsService.listPlatforms();
+    if (mounted) {
+      setState(() {
+        _extensionConnected = platforms.any((p) => p.source == 'extension');
+      });
+    }
+  }
+
+  void _showExtensionInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surfaceAlt,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Chrome payment extension',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          _extensionConnected
+              ? "Connected — we've seen at least one subscription saved from the extension. Install it on more browsers from the yxng-core repo's extension/ folder."
+              : 'Not connected yet. Load the extension from the extension/ folder via chrome://extensions '
+                  '(enable Developer mode → Load unpacked), then log in with this same account. '
+                  "It'll auto-detect checkout/subscription confirmations and offer to save them here.",
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -165,15 +217,16 @@ class SettingsTab extends StatelessWidget {
                   );
                 },
               ),
-              const _SettingsRow(
+              _SettingsRow(
                 icon: Icons.extension_rounded,
                 label: 'Chrome payment extension',
-                trailing: 'Not connected',
+                trailing: _extensionConnected ? 'Connected' : 'Not connected',
+                onTap: () => _showExtensionInfo(context),
               ),
               const _SettingsRow(
                 icon: Icons.calendar_month_rounded,
                 label: 'Calendar sync',
-                trailing: 'Not connected',
+                trailing: 'Coming soon',
               ),
               const SizedBox(height: 24),
               const _SectionLabel('ABOUT'),

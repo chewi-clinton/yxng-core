@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 
-from .gemini_client import AIClientError, get_breakdown
+from .gemini_client import AIClientError, get_breakdown, get_roadmap_breakdown
 
 bp = Blueprint("ai", __name__)
 
@@ -20,3 +20,15 @@ def breakdown():
     except AIClientError as exc:
         return jsonify({"error": str(exc)}), 502
     return jsonify({"tasks": tasks}), 200
+
+
+@bp.post("/ai/roadmap")
+def roadmap():
+    payload = request.get_json(silent=True) or {}
+    if not payload.get("topic"):
+        return jsonify({"error": "topic is required"}), 400
+    try:
+        milestones = get_roadmap_breakdown(payload)
+    except AIClientError as exc:
+        return jsonify({"error": str(exc)}), 502
+    return jsonify({"milestones": milestones}), 200

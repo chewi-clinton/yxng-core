@@ -1,5 +1,6 @@
 import '../models/linked_platform.dart';
 import '../models/project.dart';
+import '../models/roadmap.dart';
 import '../models/task.dart';
 
 /// In-memory sample data used only when the backend is unreachable, so the
@@ -242,4 +243,67 @@ LinkedPlatform createMockLinkedPlatform({
   );
   mockLinkedPlatforms.add(platform);
   return platform;
+}
+
+/// Only used when there's no backend reachable at all (offline/dev preview).
+/// When the real backend is reachable but Gemini fails, RoadmapService
+/// surfaces a RoadmapGenerationException instead of falling back to this —
+/// silently faking an "AI-generated" roadmap when the AI actually failed
+/// would be misleading.
+final List<Roadmap> mockRoadmaps = [
+  Roadmap(
+    id: -1,
+    title: 'Advanced Flutter',
+    milestones: [
+      Milestone(title: 'Widgets & layout fundamentals', status: 'done'),
+      Milestone(title: 'State management deep dive', status: 'done'),
+      Milestone(title: 'Custom animations & performance tuning', status: 'done'),
+      const Milestone(title: 'Platform channels & native integration'),
+      const Milestone(title: 'Publish & optimize a production app'),
+    ],
+  ),
+  Roadmap(
+    id: -2,
+    title: 'System design',
+    milestones: [
+      Milestone(title: 'Core concepts: scalability & availability', status: 'done'),
+      const Milestone(title: 'Scaling data stores'),
+      const Milestone(title: 'Caching & load balancing'),
+      const Milestone(title: 'Designing for failure'),
+    ],
+  ),
+];
+
+int _nextRoadmapId = -3;
+
+Roadmap createMockRoadmap({required String title, DateTime? targetDate}) {
+  final roadmap = Roadmap(
+    id: _nextRoadmapId--,
+    title: title,
+    targetDate: targetDate,
+    milestones: [
+      const Milestone(title: 'Learn the fundamentals'),
+      const Milestone(title: 'Build a small practice project'),
+      const Milestone(title: 'Go deeper into advanced topics'),
+      const Milestone(title: 'Apply it in a real project'),
+    ],
+  );
+  mockRoadmaps.add(roadmap);
+  return roadmap;
+}
+
+void mutateMockMilestone(int roadmapId, int milestoneIndex, String status) {
+  for (final roadmap in mockRoadmaps) {
+    if (roadmap.id != roadmapId) continue;
+    if (milestoneIndex < 0 || milestoneIndex >= roadmap.milestones.length) return;
+    final old = roadmap.milestones[milestoneIndex];
+    roadmap.milestones[milestoneIndex] = Milestone(
+      id: old.id,
+      title: old.title,
+      description: old.description,
+      order: old.order,
+      status: status,
+    );
+    return;
+  }
 }
