@@ -53,7 +53,7 @@ async function savePayment(name, amount) {
     'authToken',
     'apiBaseUrl',
   ]);
-  const base = (apiBaseUrl || 'http://localhost:8000').replace(/\/$/, '');
+  const base = (apiBaseUrl || 'https://yxngcore.zardocard.com').replace(/\/$/, '');
   const renewsOn = new Date();
   renewsOn.setDate(renewsOn.getDate() + 30);
 

@@ -2,7 +2,7 @@ const input = document.getElementById('apiBaseUrl');
 const saved = document.getElementById('saved');
 
 chrome.storage.local.get(['apiBaseUrl']).then(({ apiBaseUrl }) => {
-  input.value = apiBaseUrl || 'http://localhost:8000';
+  input.value = apiBaseUrl || 'https://yxngcore.zardocard.com';
 });
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
