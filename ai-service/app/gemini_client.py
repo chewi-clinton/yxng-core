@@ -29,6 +29,10 @@ class RoadmapBreakdown(BaseModel):
     milestones: List[MilestoneItem]
 
 
+class TailoredResume(BaseModel):
+    tailored_resume: str
+
+
 class AIClientError(Exception):
     pass
 
@@ -51,6 +55,27 @@ Break it into an ordered sequence of concrete milestones (earliest/most foundati
 first). Each milestone should be a specific, achievable chunk of learning or practice \
 (e.g. a concept to master, a small project to build, a skill to practice) — not vague \
 advice. Aim for between 5 and 10 milestones depending on the scope of the topic."""
+
+TAILOR_CV_PROMPT_TEMPLATE = """You are an expert resume writer. Rewrite and tailor the \
+following resume to fit the job below as closely and honestly as possible: reorder and \
+rephrase the candidate's existing experience to foreground what's relevant, mirror \
+language from the job description where it's truthfully applicable, and tighten the \
+professional summary to speak directly to this role.
+
+Do not invent experience, skills, employers, dates, or qualifications that aren't \
+already present in the original resume. If the resume is a poor fit for the role, \
+tailor it as best as honestly possible rather than fabricating a better fit.
+
+Job title: {job_title}
+Company: {job_org}
+Job description / requirements:
+{job_description}
+
+Original resume:
+{resume_text}
+
+Return the complete tailored resume as plain text, preserving the original's overall \
+section structure (e.g. Summary, Skills, Experience, Education) where present."""
 
 
 def get_breakdown(payload: dict) -> list[dict]:
@@ -102,3 +127,28 @@ def get_roadmap_breakdown(payload: dict) -> list[dict]:
     if not parsed or not parsed.milestones:
         raise AIClientError("Gemini returned an empty or malformed milestone list")
     return [m.model_dump() for m in parsed.milestones]
+
+
+def get_tailored_resume(payload: dict) -> str:
+    prompt = TAILOR_CV_PROMPT_TEMPLATE.format(
+        job_title=payload["job_title"],
+        job_org=payload.get("job_org") or "unspecified",
+        job_description=payload["job_description"],
+        resume_text=payload["resume_text"],
+    )
+    try:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=TailoredResume,
+            ),
+        )
+    except Exception as exc:
+        raise AIClientError(f"Gemini API error: {exc}") from exc
+
+    parsed: TailoredResume = response.parsed
+    if not parsed or not parsed.tailored_resume:
+        raise AIClientError("Gemini returned an empty tailored resume")
+    return parsed.tailored_resume

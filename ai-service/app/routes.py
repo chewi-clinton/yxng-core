@@ -1,6 +1,11 @@
 from flask import Blueprint, jsonify, request
 
-from .gemini_client import AIClientError, get_breakdown, get_roadmap_breakdown
+from .gemini_client import (
+    AIClientError,
+    get_breakdown,
+    get_roadmap_breakdown,
+    get_tailored_resume,
+)
 
 bp = Blueprint("ai", __name__)
 
@@ -32,3 +37,19 @@ def roadmap():
     except AIClientError as exc:
         return jsonify({"error": str(exc)}), 502
     return jsonify({"milestones": milestones}), 200
+
+
+@bp.post("/ai/tailor-cv")
+def tailor_cv():
+    payload = request.get_json(silent=True) or {}
+    required = ["resume_text", "job_title", "job_description"]
+    if not all(payload.get(f) for f in required):
+        return (
+            jsonify({"error": "resume_text, job_title, and job_description are required"}),
+            400,
+        )
+    try:
+        tailored = get_tailored_resume(payload)
+    except AIClientError as exc:
+        return jsonify({"error": str(exc)}), 502
+    return jsonify({"tailored_resume": tailored}), 200

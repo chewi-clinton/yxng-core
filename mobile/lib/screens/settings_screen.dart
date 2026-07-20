@@ -6,6 +6,7 @@ import '../services/payments_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 import 'payments_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsTab extends StatefulWidget {
   const SettingsTab({super.key});
@@ -192,6 +193,19 @@ class _SettingsTabState extends State<SettingsTab> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 24),
+              const _SectionLabel('PROFILE'),
+              const SizedBox(height: 10),
+              _SettingsRow(
+                icon: Icons.description_rounded,
+                label: 'Resume / CV',
+                trailing: 'Manage',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  );
+                },
               ),
               const SizedBox(height: 24),
               const _SectionLabel('GENERAL'),

@@ -5,12 +5,16 @@ import 'package:lottie/lottie.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/opportunity.dart';
+import '../models/resume.dart';
 import '../models/roadmap.dart';
 import '../services/opportunities_service.dart';
+import '../services/resume_service.dart';
 import '../services/roadmap_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/icon_badge.dart';
 import '../widgets/progress_bar.dart';
+import 'profile_screen.dart';
+import 'tailored_resume_screen.dart';
 
 const _attributionSources = {
   'Remote OK': 'https://remoteok.com',
@@ -36,6 +40,7 @@ class SkillsTab extends StatefulWidget {
 class _SkillsTabState extends State<SkillsTab> {
   final _roadmapService = RoadmapService();
   final _opportunitiesService = OpportunitiesService();
+  final _resumeService = ResumeService();
   List<Roadmap>? _roadmaps;
   late Future<List<Opportunity>> _opportunitiesFuture;
   final Set<String> _activeFilters = {};
@@ -291,6 +296,190 @@ class _SkillsTabState extends State<SkillsTab> {
     }
   }
 
+  void _openOpportunityDetail(Opportunity o) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surfaceAlt,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                o.title,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 19,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                o.tagline != null ? '${o.org} · ${o.tagline}' : o.org,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: Text(
+                    o.description.isEmpty
+                        ? 'No description provided for this listing.'
+                        : o.description,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _openListing(o),
+                      child: const Text('View original posting'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _startApplyFlow(o);
+                      },
+                      child: const Text('Apply'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _startApplyFlow(Opportunity o) async {
+    final ResumeInfo? resume;
+    try {
+      resume = await _resumeService.getResume();
+    } on ResumeException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    if (resume == null) {
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.surfaceAlt,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            'Upload your resume first',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: const Text(
+            "We need a resume on file to tailor one for this job. Upload a PDF from your "
+            "profile, then come back and apply.",
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              },
+              child: const Text('Go to profile'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black87,
+      builder: (context) => Center(
+        child: Container(
+          width: 240,
+          padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: AppColors.border, width: 0.6),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: 70,
+                child: Lottie.asset('assets/lottie/ai_thinking_pulse.json', repeat: true),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'AI is tailoring your resume…',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ));
+
+    try {
+      final results = await Future.wait([
+        _resumeService.tailorResume(
+          jobTitle: o.title,
+          jobOrg: o.org,
+          jobDescription: o.description,
+        ),
+        Future.delayed(const Duration(milliseconds: 2200)),
+      ]);
+      final tailored = results[0] as String;
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TailoredResumeScreen(
+            jobTitle: o.title,
+            jobOrg: o.org,
+            tailoredResume: tailored,
+            onContinueToApplication: () => _openListing(o),
+          ),
+        ),
+      );
+    } on ResumeException catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -459,7 +648,7 @@ class _SkillsTabState extends State<SkillsTab> {
                       for (final o in filtered) ...[
                         _OpportunityCard(
                           opportunity: o,
-                          onTap: () => _openListing(o),
+                          onTap: () => _openOpportunityDetail(o),
                         ),
                         const SizedBox(height: 10),
                       ],

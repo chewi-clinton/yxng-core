@@ -83,6 +83,7 @@ class OpportunitiesService {
               url: (j['url'] ?? 'https://remoteok.com').toString(),
               type: 'Remote job',
               tagline: tags != null && tags.isNotEmpty ? tags.join(' · ') : null,
+              description: _cleanDescription((j['description'] ?? '').toString()),
             );
           })
           .toList();
@@ -115,6 +116,7 @@ class OpportunitiesService {
               tagline: (j['candidate_required_location'] ?? '').toString().isEmpty
                   ? null
                   : (j['candidate_required_location']).toString(),
+              description: _cleanDescription((j['description'] ?? '').toString()),
             );
           })
           .toList();
@@ -150,12 +152,21 @@ class OpportunitiesService {
               tagline: (j['jobGeo'] ?? '').toString().isEmpty
                   ? null
                   : (j['jobGeo']).toString(),
+              description: _cleanDescription((j['jobExcerpt'] ?? '').toString()),
             );
           })
           .toList();
     } catch (_) {
       return [];
     }
+  }
+
+  String _cleanDescription(String raw) {
+    return raw
+        .replaceAll(_htmlTag, ' ')
+        .replaceAll(RegExp(r'&nbsp;|&amp;|&#39;|&quot;'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   String _titleCase(String s) {

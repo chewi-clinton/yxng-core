@@ -4,6 +4,7 @@ class Opportunity {
   final String url;
   final String type;
   final String? tagline;
+  final String description;
 
   const Opportunity({
     required this.title,
@@ -11,5 +12,6 @@ class Opportunity {
     required this.url,
     required this.type,
     this.tagline,
+    this.description = '',
   });
 }
