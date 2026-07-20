@@ -1,3 +1,4 @@
+import 'resource.dart';
 import 'task.dart';
 
 class Project {
@@ -9,6 +10,7 @@ class Project {
   final DateTime? targetEndDate;
   final bool considerOtherProjects;
   final List<Task> tasks;
+  final List<ProjectResource> resources;
   final int? taskCount;
 
   Project({
@@ -20,6 +22,7 @@ class Project {
     this.targetEndDate,
     this.considerOtherProjects = false,
     this.tasks = const [],
+    this.resources = const [],
     this.taskCount,
   });
 
@@ -36,6 +39,11 @@ class Project {
       considerOtherProjects: json['consider_other_projects'] ?? false,
       tasks: json['tasks'] != null
           ? (json['tasks'] as List).map((t) => Task.fromJson(t)).toList()
+          : const [],
+      resources: json['resources'] != null
+          ? (json['resources'] as List)
+              .map((r) => ProjectResource.fromJson(r))
+              .toList()
           : const [],
       taskCount: json['task_count'],
     );

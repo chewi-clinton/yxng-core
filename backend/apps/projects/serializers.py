@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Project, Task
+from .models import Project, Resource, Task
 
 
 class ProjectCreateSerializer(serializers.Serializer):
@@ -62,8 +62,15 @@ class ProjectListSerializer(serializers.ModelSerializer):
         ]
 
 
+class ResourceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Resource
+        fields = ["id", "kind", "title", "url", "filename", "content_type", "created_at"]
+
+
 class ProjectDetailSerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
+    resources = ResourceSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
@@ -76,6 +83,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             "target_end_date",
             "consider_other_projects",
             "tasks",
+            "resources",
             "created_at",
             "updated_at",
         ]

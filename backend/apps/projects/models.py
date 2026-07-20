@@ -52,3 +52,26 @@ class Task(models.Model):
 
     def __str__(self):
         return f"{self.project_id}: {self.title}"
+
+
+class Resource(models.Model):
+    KIND_CHOICES = [
+        ("link", "link"),
+        ("file", "file"),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="resources")
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    title = models.CharField(max_length=255)
+    url = models.URLField(blank=True)
+    file = models.BinaryField(null=True, blank=True)
+    filename = models.CharField(max_length=255, blank=True)
+    content_type = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "project_resources"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.project_id}: {self.title}"

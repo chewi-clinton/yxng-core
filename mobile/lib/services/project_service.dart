@@ -1,7 +1,27 @@
+import 'package:dio/dio.dart';
+
 import '../models/project.dart';
+import '../models/resource.dart';
 import '../models/task.dart';
 import 'api_client.dart';
 import 'mock_data.dart';
+
+/// No offline/mock fallback for resources — unlike most of this app, adding
+/// or fetching a document/link is real user content, so a failure should be
+/// a real error rather than a faked success.
+class ResourceException implements Exception {
+  final String message;
+  ResourceException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+String _extractResourceDetail(DioException e, String fallback) {
+  final data = e.response?.data;
+  final detail = data is Map ? data['detail']?.toString() : null;
+  return detail ?? fallback;
+}
 
 class ProjectService {
   Future<List<Project>> listProjects() async {
@@ -120,5 +140,66 @@ class ProjectService {
       scheduledEnd: end ?? old.scheduledEnd,
       aiGenerated: old.aiGenerated,
     );
+  }
+
+  Future<ProjectResource> addLinkResource({
+    required int projectId,
+    required String title,
+    required String url,
+  }) async {
+    try {
+      final response = await apiClient.post(
+        '/projects/$projectId/resources/',
+        data: {'kind': 'link', 'title': title, 'url': url},
+      );
+      return ProjectResource.fromJson(response.data);
+    } on DioException catch (e) {
+      throw ResourceException(
+        _extractResourceDetail(e, "Couldn't add that link. Try again."),
+      );
+    }
+  }
+
+  Future<ProjectResource> addFileResource({
+    required int projectId,
+    required String title,
+    required String filePath,
+    required String filename,
+  }) async {
+    try {
+      final response = await apiClient.post(
+        '/projects/$projectId/resources/',
+        data: FormData.fromMap({
+          'kind': 'file',
+          'title': title,
+          'file': await MultipartFile.fromFile(filePath, filename: filename),
+        }),
+      );
+      return ProjectResource.fromJson(response.data);
+    } on DioException catch (e) {
+      throw ResourceException(
+        _extractResourceDetail(e, "Couldn't upload that file. Try again."),
+      );
+    }
+  }
+
+  Future<void> deleteResource(int id) async {
+    try {
+      await apiClient.delete('/projects/resources/$id/');
+    } on DioException catch (e) {
+      throw ResourceException(_extractResourceDetail(e, "Couldn't delete that resource."));
+    }
+  }
+
+  Future<List<int>> downloadResourceBytes(int id) async {
+    try {
+      final response = await apiClient.get<List<int>>(
+        '/projects/resources/$id/download/',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data!;
+    } on DioException catch (e) {
+      throw ResourceException(_extractResourceDetail(e, "Couldn't open that file."));
+    }
   }
 }

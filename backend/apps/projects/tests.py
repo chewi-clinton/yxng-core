@@ -1,11 +1,12 @@
 from unittest.mock import patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import User
 
-from .models import Project, Task
+from .models import Project, Resource, Task
 from .services.ai_client import AIServiceError
 
 FAKE_BREAKDOWN = [
@@ -117,3 +118,97 @@ class ProjectAccessTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, "done")
+
+
+class ProjectResourceTests(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="owner", password="pass12345!")
+        self.other = User.objects.create_user(username="other", password="pass12345!")
+        self.project = Project.objects.create(
+            owner=self.owner, title="Owner's project", start_date="2026-07-20"
+        )
+        self.list_url = f"/api/v1/projects/{self.project.id}/resources/"
+
+    def test_owner_can_add_link_resource(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            self.list_url,
+            {"kind": "link", "title": "Docs", "url": "https://example.com/docs"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        resource = Resource.objects.get(project=self.project)
+        self.assertEqual(resource.kind, "link")
+        self.assertEqual(resource.url, "https://example.com/docs")
+
+    def test_link_resource_requires_url(self):
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.post(
+            self.list_url, {"kind": "link", "title": "Docs"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_owner_can_add_file_resource(self):
+        self.client.force_authenticate(user=self.owner)
+        upload = SimpleUploadedFile("diagram.png", b"fake-png-bytes", content_type="image/png")
+        response = self.client.post(
+            self.list_url, {"kind": "file", "title": "Diagram", "file": upload}, format="multipart"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        resource = Resource.objects.get(project=self.project)
+        self.assertEqual(resource.kind, "file")
+        self.assertEqual(resource.filename, "diagram.png")
+        self.assertEqual(bytes(resource.file), b"fake-png-bytes")
+
+    def test_download_returns_file_bytes(self):
+        resource = Resource.objects.create(
+            project=self.project,
+            kind="file",
+            title="Diagram",
+            file=b"fake-png-bytes",
+            filename="diagram.png",
+            content_type="image/png",
+        )
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.get(f"/api/v1/projects/resources/{resource.id}/download/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.content, b"fake-png-bytes")
+        self.assertEqual(response["Content-Type"], "image/png")
+
+    def test_other_user_sees_no_resources_and_cannot_delete(self):
+        resource = Resource.objects.create(
+            project=self.project, kind="link", title="Docs", url="https://example.com"
+        )
+        self.client.force_authenticate(user=self.other)
+        # Same scoping pattern as the existing task list: another user's
+        # project resource list comes back empty (200), not 404.
+        list_response = self.client.get(self.list_url)
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.data), 0)
+        self.assertEqual(
+            self.client.delete(f"/api/v1/projects/resources/{resource.id}/").status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+        self.assertTrue(Resource.objects.filter(id=resource.id).exists())
+
+    def test_other_user_cannot_create_resource_on_someone_elses_project(self):
+        self.client.force_authenticate(user=self.other)
+        response = self.client.post(
+            self.list_url,
+            {"kind": "link", "title": "Docs", "url": "https://example.com"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_owner_can_delete_resource(self):
+        resource = Resource.objects.create(
+            project=self.project, kind="link", title="Docs", url="https://example.com"
+        )
+        self.client.force_authenticate(user=self.owner)
+        response = self.client.delete(f"/api/v1/projects/resources/{resource.id}/")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Resource.objects.filter(id=resource.id).exists())
+
+    def test_requires_authentication(self):
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
