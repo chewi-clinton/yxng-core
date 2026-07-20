@@ -19,6 +19,12 @@ if DEBUG:
 
 AI_SERVICE_URL = os.getenv("AI_SERVICE_URL", "http://localhost:5000")
 
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.getenv(
+    "GOOGLE_REDIRECT_URI", "https://yxngcore.zardocard.com/api/v1/calendar/callback/"
+)
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -36,6 +42,7 @@ INSTALLED_APPS = [
     "apps.payments",
     "apps.skills",
     "apps.profiles",
+    "apps.calendar_sync",
 ]
 
 MIDDLEWARE = [

@@ -11,6 +11,8 @@
 #   SECRET_KEY, ALLOWED_HOSTS, GEMINI_API_KEY,
 #   GEMINI_MODEL (defaults to gemini-2.5-flash-lite if unset)
 #   DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT (external Postgres)
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (Google Calendar OAuth)
+#   GOOGLE_REDIRECT_URI (defaults to https://yxngcore.zardocard.com/api/v1/calendar/callback/)
 
 services:
   ai-service:
@@ -35,6 +37,9 @@ services:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       AI_SERVICE_URL: http://ai-service:5000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-https://yxngcore.zardocard.com/api/v1/calendar/callback/}
     depends_on:
       - ai-service
     ports:

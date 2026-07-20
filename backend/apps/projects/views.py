@@ -5,6 +5,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.calendar_sync.services.sync import sync_task
 from apps.schedule.services.naive_scheduler import schedule_tasks
 
 from .models import Project, Resource, Task
@@ -41,7 +42,7 @@ class ProjectListCreateView(generics.ListCreateAPIView):
                 )
                 breakdown = get_task_breakdown(project)
                 slots = schedule_tasks(breakdown, project.start_date)
-                Task.objects.bulk_create(
+                tasks = Task.objects.bulk_create(
                     [
                         Task(
                             project=project,
@@ -57,6 +58,9 @@ class ProjectListCreateView(generics.ListCreateAPIView):
                 )
         except AIServiceError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        for task in tasks:
+            sync_task(task)
 
         return Response(
             ProjectDetailSerializer(project).data, status=status.HTTP_201_CREATED
@@ -84,6 +88,10 @@ class TaskDetailView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return Task.objects.filter(project__owner=self.request.user)
+
+    def perform_update(self, serializer):
+        task = serializer.save()
+        sync_task(task)
 
 
 class ProjectResourceListCreateView(generics.ListCreateAPIView):

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
+import '../services/calendar_service.dart';
 import '../services/payments_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
@@ -15,14 +17,101 @@ class SettingsTab extends StatefulWidget {
   State<SettingsTab> createState() => _SettingsTabState();
 }
 
-class _SettingsTabState extends State<SettingsTab> {
+class _SettingsTabState extends State<SettingsTab> with WidgetsBindingObserver {
   final _paymentsService = PaymentsService();
+  final _calendarService = CalendarService();
   bool _extensionConnected = false;
+  bool _calendarConnected = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkExtensionConnection();
+    _checkCalendarConnection();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Catches the user coming back from the Google OAuth consent page in
+    // their browser, since there's no deep link back into the app.
+    if (state == AppLifecycleState.resumed) {
+      _checkCalendarConnection();
+    }
+  }
+
+  Future<void> _checkCalendarConnection() async {
+    final connected = await _calendarService.getStatus();
+    if (mounted) setState(() => _calendarConnected = connected);
+  }
+
+  Future<void> _handleCalendarTap() async {
+    if (_calendarConnected) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.surfaceAlt,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text(
+            'Disconnect Google Calendar?',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: const Text(
+            "Scheduled tasks and roadmap dates will stop syncing to your calendar. "
+            "Events already created there stay put.",
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Disconnect', style: TextStyle(color: AppColors.error)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) {
+        final ok = await _calendarService.disconnect();
+        if (!mounted) return;
+        if (ok) {
+          setState(() => _calendarConnected = false);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Couldn't disconnect. Try again.")),
+          );
+        }
+      }
+      return;
+    }
+
+    final authUrl = await _calendarService.getAuthUrl();
+    if (authUrl == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't start Google sign-in. Try again.")),
+        );
+      }
+      return;
+    }
+    final uri = Uri.parse(authUrl);
+    if (await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sign in with Google, then come back to the app.'),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _checkExtensionConnection() async {
@@ -239,10 +328,11 @@ class _SettingsTabState extends State<SettingsTab> {
                 trailing: _extensionConnected ? 'Active' : 'No captures yet',
                 onTap: () => _showExtensionInfo(context),
               ),
-              const _SettingsRow(
+              _SettingsRow(
                 icon: Icons.calendar_month_rounded,
                 label: 'Calendar sync',
-                trailing: 'Coming soon',
+                trailing: _calendarConnected ? 'Connected' : 'Connect',
+                onTap: _handleCalendarTap,
               ),
               const SizedBox(height: 24),
               const _SectionLabel('ABOUT'),

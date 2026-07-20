@@ -2,6 +2,8 @@ from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.response import Response
 
+from apps.calendar_sync.services.sync import sync_milestone
+
 from .models import Milestone, Roadmap
 from .serializers import (
     MilestoneUpdateSerializer,
@@ -33,7 +35,7 @@ class RoadmapListCreateView(generics.ListCreateAPIView):
                 )
                 breakdown = get_roadmap_breakdown(roadmap.title, roadmap.target_date)
                 dates = pace_milestones(len(breakdown), roadmap.target_date)
-                Milestone.objects.bulk_create(
+                milestones = Milestone.objects.bulk_create(
                     [
                         Milestone(
                             roadmap=roadmap,
@@ -47,6 +49,9 @@ class RoadmapListCreateView(generics.ListCreateAPIView):
                 )
         except AIServiceError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        for milestone in milestones:
+            sync_milestone(milestone)
 
         return Response(
             RoadmapDetailSerializer(roadmap).data, status=status.HTTP_201_CREATED
